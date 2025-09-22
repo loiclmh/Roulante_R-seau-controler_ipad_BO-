@@ -1,0 +1,55 @@
+🎹 Projet Clavier Pico MIDI 166B
+
+1. Microcontrôleurs
+- Raspberry Pi Pico RP2040 Type-C (4MB)
+  https://fr.aliexpress.com/item/1005007104120926.html
+
+2. Faders motorisés
+- Fader motorisé 100 mm RSA0N11M9A0J
+  https://fr.aliexpress.com/item/1005005868301934.html
+
+3. Drivers moteurs
+- Module DRV8871 (2pcs)
+  https://fr.aliexpress.com/item/1005008863117410.html
+
+4. Alimentation
+- Bloc alim 12 V 8A 100W
+  https://fr.aliexpress.com/item/1005008308770436.html
+
+5. Switches
+- Switchs mécaniques Blue (110 pcs)
+  https://fr.aliexpress.com/item/1005002378701948.html
+
+6. Logique matrice
+- Kit registres 74HC (74HC165, 74HC595, etc.)
+  https://fr.aliexpress.com/item/1005007227446173.html
+
+7. Résistances réseau
+- Réseau RN8 10 kΩ (SIP-9)
+  https://fr.aliexpress.com/item/32840103807.html
+
+8. Diodes
+- Diode signal 1N4148 (100 pcs)
+  https://fr.aliexpress.com/item/1005002461982369.html
+- Diode TVS 1.5KE12A
+  https://fr.aliexpress.com/item/32886912315.html
+
+9. Condensateurs
+- Condensateurs électrolytiques 25 V 1000 µF
+  https://fr.aliexpress.com/item/1005006203199812.html
+- Condensateurs céramiques 100 nF
+  https://fr.aliexpress.com/item/1005009845465922.html
+
+10. Connectique
+- Connecteurs JST-XH 3P
+  https://fr.aliexpress.com/item/1005006227337604.html
+- Câbles JST pré-sertis
+  https://fr.aliexpress.com/item/1005007080333485.html
+- Fil silicone 30AWG (5×10m)
+  https://fr.aliexpress.com/item/1005007671008743.html
+- Fil rouge/noir 20AWG (5m)
+  https://fr.aliexpress.com/item/1005006405785905.html
+
+11. Encodeurs
+- Encodeurs rotatifs EC11
+  https://fr.aliexpress.com/item/1005006105510076.html
