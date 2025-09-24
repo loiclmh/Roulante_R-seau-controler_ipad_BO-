@@ -33,13 +33,18 @@ struct SlipDecoder {
       if (r < 0) break;
       uint8_t b = (uint8_t)r;
       if (b == SLIP_END) {
-        if (len > 0) { size_t L=len; (void)L; len=0; esc=false; return true; }
-        else { len=0; esc=false; }
+        if (len > 0) {
+          // paquet prêt : NE PAS vider ici (le caller consommera buf/len)
+          return true;
+        } else {
+          // séparateur/keep-alive
+          len = 0; esc = false;
+        }
       } else if (b == SLIP_ESC) {
         esc = true;
       } else {
         if (esc) {
-          if (b == SLIP_ESC_END) b = SLIP_END;
+          if (b == SLIP_ESC_END)      b = SLIP_END;
           else if (b == SLIP_ESC_ESC) b = SLIP_ESC;
           esc = false;
         }

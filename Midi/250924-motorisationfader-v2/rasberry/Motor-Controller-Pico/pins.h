@@ -44,4 +44,3 @@ inline void pinsBegin() {
   // I2C sera configuré dans display.cpp :
   // Wire.setSDA(PIN_I2C_SDA); Wire.setSCL(PIN_I2C_SCL);
 }
-
