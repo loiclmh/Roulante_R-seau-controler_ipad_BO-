@@ -8,7 +8,7 @@ static constexpr uint8_t SLIP_ESC     = 0xDB;
 static constexpr uint8_t SLIP_ESC_END = 0xDC;
 static constexpr uint8_t SLIP_ESC_ESC = 0xDD;
 
-// Encode (host ← Pico)
+// Encode (Pico -> Host)
 inline void slipWriteByte(uint8_t b) {
   if (b == SLIP_END)      { HALSerial::write(SLIP_ESC); HALSerial::write(SLIP_ESC_END); }
   else if (b == SLIP_ESC) { HALSerial::write(SLIP_ESC); HALSerial::write(SLIP_ESC_ESC); }
@@ -16,11 +16,11 @@ inline void slipWriteByte(uint8_t b) {
 }
 inline void slipWritePacket(const uint8_t* data, size_t len) {
   HALSerial::write(SLIP_END);
-  for (size_t i=0;i<len;i++) slipWriteByte(data[i]);
+  for (size_t i = 0; i < len; ++i) slipWriteByte(data[i]);
   HALSerial::write(SLIP_END);
 }
 
-// Decode
+// Decode (Host -> Pico)
 struct SlipDecoder {
   uint8_t buf[128];
   size_t  len = 0;
@@ -32,13 +32,16 @@ struct SlipDecoder {
       int r = HALSerial::read();
       if (r < 0) break;
       uint8_t b = (uint8_t)r;
+
       if (b == SLIP_END) {
         if (len > 0) {
-          // paquet prêt : NE PAS vider ici (le caller consommera buf/len)
+          // Paquet prêt : NE PAS vider ici (le caller consomme ensuite)
+          esc = false;
           return true;
         } else {
-          // séparateur/keep-alive
-          len = 0; esc = false;
+          // Paquet vide => reset d'état
+          len = 0;
+          esc = false;
         }
       } else if (b == SLIP_ESC) {
         esc = true;

@@ -15,6 +15,7 @@
 // 0 = expérience PID + profil + SLIP (avec Tuning.py)
 // 1 = test open-loop (fader -> moteur direct) [désactivé ici]
 #define OPEN_LOOP_TEST 0
+#define FORCE_SPIN_TEST 0  // 1 = force moteur à tourner pour debug, 0 = fader->moteur
 
 // ------- Tick 1 kHz -------
 static inline bool tick1k() {
@@ -34,6 +35,7 @@ static inline void put_i16_le(uint8_t* dst, int16_t v) {
 static SlipDecoder rx;            // décodeur SLIP entrant
 static bool experimentOn = false; // activé quand on reçoit 's'
 static uint32_t txCount = 0;
+static uint32_t expStartMs = 0;  // timestamp when we received 's'
 
 // ------- PID -------
 static PID controller;
@@ -52,6 +54,7 @@ static void handlePacket(const uint8_t* p, size_t n) {
     txCount = 0;
     controller.reset();
     RefProfile::reset();
+    expStartMs = millis();
     Display::showSplash("Start exp OK");
 
     // Prime: quelques trames neutres pour que Python accroche
@@ -84,7 +87,15 @@ void setup() {
   pinsBegin();
   HALSerial::begin();
   Display::begin();
+#if OPEN_LOOP_TEST
+  #if FORCE_SPIN_TEST
+    Display::showSplash("Motor forced test (+/-)\nOpen-loop");
+  #else
+    Display::showSplash("Fader -> Motor (open-loop)");
+  #endif
+#else
   Display::showSplash("Waiting 's' from PC");
+#endif
   Motor::begin();
 
   controller.setTunings(6.0f, 2.0f, 0.035f, 60.0f);
@@ -97,54 +108,73 @@ void loop() {
 #if OPEN_LOOP_TEST
   // ==== Mode test câblage (désactivé) ====
   if (tick1k()) {
-    uint16_t raw12 = analogRead(PIN_FADER_WIPER);
-    uint16_t y10   = raw12 >> 2;
+#if !FORCE_SPIN_TEST
+    uint16_t raw12 = analogRead(PIN_FADER_WIPER);   // 0..4095
+    uint16_t y10   = raw12 >> 2;                    // 0..1023
     static float ema = 0.0f;
-    ema = 0.3f * y10 + 0.7f * ema;
+    ema = 0.5f * y10 + 0.5f * ema;                  // lissage plus réactif
 
+    // map 0..1023 -> -1000..+1000 (centre ~512)
     int16_t u = map((int)ema, 0, 1023, -1000, 1000);
     Motor::drive(u);
 
+    // UI ~20 Hz
     static uint32_t t_ui = 0;
     uint32_t now = millis();
     if (now - t_ui >= 50) {
       t_ui = now;
       Display::showFaderAndMotor((uint16_t)ema, y10, u);
     }
+#else
+    // ===== TEST FORCÉ MOTEUR : alterne +600 / -600 toutes les 2 s =====
+    static uint32_t t0 = millis();
+    uint32_t t = (millis() - t0) / 2000; // tranche de 2 s
+    int16_t u = (t % 2 == 0) ? +600 : -600;  // force un couple non nul
+    Motor::drive(u);
+
+    // UI ~20 Hz
+    static uint32_t t_ui = 0;
+    uint32_t now = millis();
+    if (now - t_ui >= 50) {
+      t_ui = now;
+      // On affiche des valeurs synthétiques pour debug
+      Display::showFaderAndMotor( (t%2)?900:100, (t%2)?900:100, u );
+    }
+#endif
   }
 #else
   // ==== Mode expérience PID + profil + SLIP ====
   // 1) Lire les paquets SLIP entrants
   if (rx.poll()) {
     handlePacket(rx.buf, rx.len);
+    rx.len = 0;  // <-- consommer le paquet après traitement
   }
 
   // 2) Boucle 1 kHz
   if (tick1k()) {
     if (experimentOn) {
-      // Référence (0..1023) type TTTapa
-      uint16_t r = RefProfile::next();
+      // Pendant les 500 premières ms, envoie un heartbeat
+      if ((uint32_t)(millis() - expStartMs) < 500) {
+        uint8_t payload[6] = {0,0,0,0,0,0};
+        slipWritePacket(payload, sizeof(payload));
+        HALSerial::flush();
+        static bool led = false; led = !led; digitalWrite(PIN_DEBUG_LED, led);
+      } else {
+        uint16_t r = RefProfile::next();
+        uint16_t raw12 = analogRead(PIN_FADER_WIPER);
+        uint16_t y     = raw12 >> 2;
+        int16_t u = controller.update((int16_t)r, (int16_t)y);
+        Motor::drive(u);
 
-      // Mesure fader (ADC 12 -> 10 bits)
-      uint16_t raw12 = analogRead(PIN_FADER_WIPER);
-      uint16_t y     = raw12 >> 2;
+        uint8_t payload[6];
+        put_i16_le(&payload[0], (int16_t)r);
+        put_i16_le(&payload[2], (int16_t)y);
+        put_i16_le(&payload[4], (int16_t)(u * 30));
+        slipWritePacket(payload, sizeof(payload));
+        HALSerial::flush();
+        txCount++;
+      }
 
-      // PID ~ [-1000 ; +1000]
-      int16_t u = controller.update((int16_t)r, (int16_t)y);
-
-      // Pilotage DRV8871
-      Motor::drive(u);
-
-      // Envoi (ref, pos, u) vers Python
-      uint8_t payload[6];
-      put_i16_le(&payload[0], (int16_t)r);
-      put_i16_le(&payload[2], (int16_t)y);
-      put_i16_le(&payload[4], (int16_t)(u * 30)); // facteur pour visibilité
-      slipWritePacket(payload, sizeof(payload));
-      HALSerial::flush();
-      txCount++;
-
-      // Fin d'essai -> coupe envoi + moteur
       if (RefProfile::finished()) {
         experimentOn = false;
         Motor::stop();

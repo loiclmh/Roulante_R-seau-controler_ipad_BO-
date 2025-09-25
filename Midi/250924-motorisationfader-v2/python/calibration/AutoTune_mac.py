@@ -1,0 +1,248 @@
+"""
+AutoTune_top4_mac.py — Auto-tuning PID (Pico + SLIP, macOS)
+- Grille grossière -> affinage autour du meilleur
+- Score = w1*overshoot + w2*settling + w3*ss_error + w4*effort (plus petit = meilleur)
+- Retourne et trace les 4 meilleurs résultats, sauvegarde PNG/SVG dans results/
+"""
+
+import sys, glob, os
+from pathlib import Path
+from datetime import datetime
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ---------- Déps ----------
+try:
+    import struct
+    from serial import Serial
+    from serial.tools import list_ports
+    from time import sleep
+    from SLIP import read_slip, write_slip
+except ModuleNotFoundError as e:
+    print("[ERREUR] Module manquant:", e)
+    print("Installe:  python3 -m pip install --user numpy matplotlib pyserial")
+    sys.exit(1)
+
+# ---------- Réglages généraux ----------
+BAUDRATE = 1_000_000
+TIMEOUT  = 0.5
+speed_div = 8.0
+fader_idx = 0
+
+# Tolérances / pondérations pour le score
+SETTLING_TOL = 0.03     # 3% de l’amplitude ref
+W_OVERSHOOT  = 1.0
+W_SETTLING   = 1.0
+W_SS_ERR     = 1.5
+W_EFFORT     = 0.3
+
+# ---------- Helpers SLIP ----------
+def autodetect_port() -> str | None:
+    cands = sorted(glob.glob('/dev/tty.usbmodem*') + glob.glob('/dev/tty.usbserial*'))
+    if not cands:
+        for p in list_ports.comports():
+            name = p.device or ""
+            if "usbmodem" in name or "usbserial" in name:
+                cands.append(name)
+            if getattr(p, "vid", None) == 0x2E8A:  # RP2040
+                return name
+    return cands[0] if cands else None
+
+def set_tuning(ser: Serial, kp, ki, kd, fc):
+    vals = [kp, ki, kd, fc]
+    for i, val in enumerate(vals):
+        setting = ('p','i','d','c')[i]
+        msg = (setting + str(fader_idx)).encode() + struct.pack('<f', float(val))
+        write_slip(ser, msg)
+        sleep(0.01)
+
+def start(ser: Serial):
+    msg = b's0' + struct.pack('<f', float(speed_div))
+    write_slip(ser, msg)
+
+def run_trial(ser: Serial, kp, ki, kd, fc):
+    """Renvoie (ref, pos, u) et metrics dict + score. Si vide: valid=False."""
+    ser.reset_input_buffer()
+    set_tuning(ser, kp, ki, kd, fc)
+    read_slip(ser)          # purge éventuelle
+    ser.reset_input_buffer()
+    start(ser)
+
+    rows = []
+    while True:
+        data = read_slip(ser)
+        if data is None:
+            break
+        rows.append(data)
+
+    if not rows:
+        return None, None, None, {"valid": False}, float("inf")
+
+    arr = np.array(rows, dtype=float)
+    ref, pos, u = arr[:,0], arr[:,1], arr[:,2]
+    metrics = compute_metrics(ref, pos, u)
+    metrics["valid"] = True
+    s = score_metrics(metrics)
+    return ref, pos, u, metrics, s
+
+# ---------- Scoring ----------
+def compute_metrics(ref, pos, u):
+    eps = 1e-9
+    ref_span = max(np.max(ref)-np.min(ref), 1000.0)
+
+    # Overshoot (max dépassement positif rapporté à l'amplitude)
+    ov = np.max(pos - ref) / (ref_span + eps)
+
+    # Erreur de régime (derniers 10%)
+    n = len(ref)
+    tail = slice(int(n*0.9), n)
+    ss_err = np.mean(np.abs(pos[tail] - ref[tail])) / (ref_span + eps)
+
+    # Settling: dernier index où |pos-ref| > tol
+    tol_abs = SETTLING_TOL * ref_span
+    err = np.abs(pos - ref)
+    idx = np.where(err > tol_abs)[0]
+    settling = (idx[-1] if len(idx)>0 else 0)
+
+    # Effort (RMS u)
+    effort = np.sqrt(np.mean((u/30000.0)**2))
+
+    return {
+        "overshoot": float(max(0.0, ov)),
+        "ss_err":    float(ss_err),
+        "settling":  float(settling),
+        "effort":    float(effort),
+    }
+
+def score_metrics(m):
+    return (W_OVERSHOOT*m["overshoot"]
+          + W_SETTLING *m["settling"]/5000.0
+          + W_SS_ERR   *m["ss_err"]
+          + W_EFFORT   *m["effort"])
+
+# ---------- Exploration ----------
+def coarse_grid():
+    # Grille large (Kp, Kd, Ki) — Ki=0 d'abord, fc=60/40
+    KPs = [0.8, 1.5, 2.5, 3.5, 4.5]
+    KDs = [0.00, 0.02, 0.035, 0.06]
+    KIs = [0.0]
+    FCs = [60, 40]
+    for kp in KPs:
+        for kd in KDs:
+            for ki in KIs:
+                for fc in FCs:
+                    yield (kp, ki, kd, fc)
+
+def refine_around(best):
+    kp, ki, kd, fc = best
+    KPs = [max(0.2, kp-0.5), kp, kp+0.5]
+    KDs = [max(0.0, kd-0.02), kd, kd+0.02]
+    KIs = [0.0, 0.25, 0.5, 0.75, 1.0]
+    FCs = [fc, 40 if fc==60 else 60]
+    for kp in KPs:
+        for kd in KDs:
+            for ki in KIs:
+                for f in FCs:
+                    yield (round(kp,3), round(ki,3), round(kd,3), f)
+
+# ---------- Plot ----------
+def plot_trial(ax, ref, pos, u, title=""):
+    ax2 = ax.twinx()
+    ax.plot(ref, label="ref", linewidth=1.0, color='tab:blue')
+    ax.plot(pos, label="pos", linewidth=1.0, color='tab:orange')
+    ax2.plot(u,  label="u (cmd)", linewidth=0.9, alpha=0.8, color='tab:green')
+    ax.set_title(title, fontsize=10)
+    ax.set_ylabel("ref/pos")
+    ax2.set_ylabel("u")
+    ax.grid(True, linestyle=':', linewidth=0.5, alpha=0.5)
+    ax.legend(loc='upper left', fontsize=7, frameon=False)
+    ax2.legend(loc='upper right', fontsize=7, frameon=False)
+    ax2.set_ylim(-33000, 33000)
+
+# ---------- Main ----------
+def main():
+    root = Path(__file__).parent
+    os.chdir(root)
+    results_dir = root / "results"
+    results_dir.mkdir(exist_ok=True)
+
+    port = autodetect_port()
+    if port is None:
+        print("[ERREUR] Aucun port usbmodem trouvé.")
+        sys.exit(1)
+    print(f"[INFO] Port: {port}")
+
+    trials = []  # on garde TOUT pour trier: dict avec kp,ki,kd,fc, metrics, score, traces
+    best = None
+    best_score = float("inf")
+
+    with Serial(port, BAUDRATE, timeout=TIMEOUT) as ser:
+        # 1) Coarse
+        print("[INFO] Coarse grid…")
+        for (kp, ki, kd, fc) in coarse_grid():
+            ref, pos, u, met, s = run_trial(ser, kp, ki, kd, fc)
+            if not met["valid"]:
+                print(f"[WARN] vide: Kp={kp}, Ki={ki}, Kd={kd}, fc={fc}")
+                continue
+            trials.append({
+                "kp":kp, "ki":ki, "kd":kd, "fc":fc,
+                "metrics": met, "score": s,
+                "trace": (ref, pos, u)
+            })
+            print(f"Kp={kp:.2f} Ki={ki:.2f} Kd={kd:.3f} fc={fc}  "
+                  f"| ov={met['overshoot']:.3f} ss={met['ss_err']:.3f} "
+                  f"settle={met['settling']:.0f} eff={met['effort']:.3f}  => score={s:.3f}")
+            if s < best_score:
+                best_score, best = s, (kp, ki, kd, fc)
+
+        if best is None:
+            print("[ERREUR] Aucun essai valide.")
+            sys.exit(1)
+
+        # 2) Refinement
+        print("[INFO] Refinement…")
+        with Serial(port, BAUDRATE, timeout=TIMEOUT) as ser2:
+            for (kp, ki, kd, fc) in refine_around(best):
+                ref, pos, u, met, s = run_trial(ser2, kp, ki, kd, fc)
+                if not met["valid"]:
+                    continue
+                trials.append({
+                    "kp":kp, "ki":ki, "kd":kd, "fc":fc,
+                    "metrics": met, "score": s,
+                    "trace": (ref, pos, u)
+                })
+                print(f"refine Kp={kp:.2f} Ki={ki:.2f} Kd={kd:.3f} fc={fc}  "
+                      f"| ov={met['overshoot']:.3f} ss={met['ss_err']:.3f} "
+                      f"settle={met['settling']:.0f} eff={met['effort']:.3f}  => score={s:.3f}")
+
+    # ---------- Top 4 ----------
+    if not trials:
+        print("[WARN] Aucun essai exploitable.")
+        return
+
+    trials_sorted = sorted(trials, key=lambda t: t["score"])[:4]
+    print("\n=== TOP 4 (meilleur -> moins bon) ===")
+    for rank, t in enumerate(trials_sorted, 1):
+        m = t["metrics"]
+        print(f"#{rank}: Kp={t['kp']:.2f} Ki={t['ki']:.2f} Kd={t['kd']:.3f} fc={t['fc']}  "
+              f"| ov={m['overshoot']:.3f} ss={m['ss_err']:.3f} settle={m['settling']:.0f} eff={m['effort']:.3f}  "
+              f"score={t['score']:.3f}")
+
+    # Figure 2x2 des 4 meilleurs
+    fig, axes = plt.subplots(2, 2, figsize=(14, 9), constrained_layout=True)
+    axes = axes.ravel()
+    for ax, t in zip(axes, trials_sorted):
+        ref, pos, u = t["trace"]
+        title = f"Kp={t['kp']:.2f}, Ki={t['ki']:.2f}, Kd={t['kd']:.3f}, fc={t['fc']} | score={t['score']:.3f}"
+        plot_trial(ax, ref, pos, u, title)
+
+    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+    out_svg = results_dir / f"autotune_top4-{timestamp}.svg"
+    out_png = results_dir / f"autotune_top4-{timestamp}.png"
+    plt.savefig(out_svg)
+    plt.savefig(out_png, dpi=300)
+    print("[OK] Top 4 saved:", out_svg, out_png)
+    plt.show()
+
+if __name__ == "__main__":
+    main()
