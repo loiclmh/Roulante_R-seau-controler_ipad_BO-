@@ -1,5 +1,3 @@
-
-
 /*
   Faders multi-canaux (RP2040) — Control Surface + zones mortes
   - Nombre de faders réglable via NUM_FADERS (1..11)
