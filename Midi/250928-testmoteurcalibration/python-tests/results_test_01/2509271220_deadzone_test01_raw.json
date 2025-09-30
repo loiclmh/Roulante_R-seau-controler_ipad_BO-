@@ -1,0 +1,9 @@
+{
+  "center": 1014.0,
+  "deadzone_counts": 5,
+  "mode": "raw",
+  "k": 3.0,
+  "samples": 335,
+  "center_est": "mode",
+  "use_first": 0.0
+}

@@ -1,9 +1,10 @@
 #include "pins.h"
-#include "display.h"
+#include "display.hpp"
 #include "motor.hpp"
 #include "ref_profile.hpp"
 #include "touch.hpp"
 #include "midi_io.hpp"
+#include "pid.h"
 #include <Arduino.h>
 
 // ==== Support Adafruit TinyUSB ====
@@ -44,6 +45,10 @@ namespace HALSerial {
   }
 }
 
+// PID controller instance + touch edge memory
+static PID pid;
+static bool prevTouched = false;
+
 void setup() {
   pinsBegin();
   HALSerial::begin();
@@ -52,6 +57,7 @@ void setup() {
   MIDIIO_begin();         // init USB MIDI (Control_Surface)
   Motor::begin();
   analogReadResolution(12); // ADC on RP2040
+  pid.applyDefaults(); // charge Kp/Ki/Kd/Fc calibrés et réinitialise l'état
 }
 
 void loop() {
@@ -85,19 +91,19 @@ void loop() {
 
     int16_t u = 0;
     if (touched) {
+      // Front montant du toucher : on coupe et on remet à zéro l'intégrateur/filtre
+      if (!prevTouched) {
+        pid.reset();
+      }
       Motor::stop();
       // Écriture vers le DAW pendant la prise en main
       MIDIIO_sendPositionFromADC((uint16_t)ema);
     } else {
-      // Suivi simple P (test) : u = Kp * (ref - pos)
-      int error = (int)ref10 - (int)ema;    // -1023..+1023
-      const int Kp = 2;                     // gain de test
-      long u32 = (long)error * Kp;
-      if (u32 > 1000) u = 1000;
-      else if (u32 < -1000) u = -1000;
-      else u = (int16_t)u32;
+      // PID complet : setpoint = ref10 (0..1023), feedback = ema (0..1023)
+      u = pid.update((int16_t)ref10, (int16_t)ema); // borne à ±1000 en interne
       Motor::drive(u);
     }
+    prevTouched = touched;
 
     // UI refresh ~20Hz
     static uint32_t t_ui = 0;

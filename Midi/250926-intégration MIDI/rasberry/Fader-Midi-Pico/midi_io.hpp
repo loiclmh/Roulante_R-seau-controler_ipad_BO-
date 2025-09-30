@@ -67,7 +67,7 @@ inline bool MIDIIO_hasRecentRX(uint32_t window_ms = 300) {
 inline void MIDIIO_sendPositionFromADC(uint16_t y10, uint8_t hysteresisLSB = 1) {
   uint8_t cc = adcToCC(y10);
   if (lastSentCC == 0xFF || (abs((int)cc - (int)lastSentCC) >= hysteresisLSB)) {
-    midi.sendCC(MIDI_CC_NUM, cc, MIDI_CH);
+    midi.sendControlChange(MIDIAddress{MIDI_CC_NUM, MIDI_CH}, cc);
     lastSentCC = cc;
   }
 }

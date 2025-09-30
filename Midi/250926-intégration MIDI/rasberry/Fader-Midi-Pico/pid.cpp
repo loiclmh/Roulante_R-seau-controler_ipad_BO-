@@ -1,16 +1,19 @@
 #include "pid.h"
-#include <math.h>
+
+static constexpr float TWO_PI_F = 6.28318530718f;
 
 void PID::setTunings(float Kp, float Ki, float Kd, float fc_hz) {
   kp = Kp;
   ki = Ki;
   kd = Kd;
-  // filtre dérivé : y[n] = a1*y[n-1] + (1-a1)*x[n]
-  if (fc_hz <= 0) { a1 = 0.0f; }
-  else {
-    float RC = 1.0f / (2.0f * M_PI * fc_hz);
+
+  if (fc_hz <= 0.0f) {
+    a1 = 0.0f;
+  } else {
+    const float RC = 1.0f / (TWO_PI_F * fc_hz);
     a1 = RC / (RC + Ts);
-    if (a1 < 0) a1 = 0; if (a1 > 0.9999f) a1 = 0.9999f;
+    if (a1 < 0.0f) a1 = 0.0f;
+    else if (a1 > 0.9999f) a1 = 0.9999f;
   }
 }
 
@@ -20,28 +23,26 @@ void PID::reset() {
 }
 
 int16_t PID::update(int16_t setpoint, int16_t meas) {
-  // Erreur
-  float e = (float)setpoint - (float)meas;
+  const float e = (float)setpoint - (float)meas;
 
-  // Proportionnel
-  float up = kp * e;
+  const float up = kp * e;
 
-  // Intégral (anti-windup simple)
-  i_acc += ki * e * Ts * 100.0f; // *100 pour ramener les ordres de grandeur
+  i_acc += ki * e * Ts * KI_SCALE;
   if (i_acc > 1000.0f) i_acc = 1000.0f;
   if (i_acc < -1000.0f) i_acc = -1000.0f;
 
-  // Dérivé (sur la mesure -> -kd * d(y)/dt ; on l’approx avec filtre)
-  float d_meas = - (float)(meas);        // signe pour d(meas)
+  float d_meas = -(float)meas;
   d_prev = a1 * d_prev + (1.0f - a1) * d_meas;
-  float ud = kd * (d_prev) * 0.01f;      // *0.01 pour calmer la contribution
+  const float ud = kd * d_prev * KD_SCALE;
 
-  // Somme
   float u = up + i_acc + ud;
-
-  // Saturation de sortie
   if (u > 1000.0f) u = 1000.0f;
   if (u < -1000.0f) u = -1000.0f;
 
   return (int16_t)u;
+}
+
+void PID::applyDefaults() {
+  setTunings(KP_DEFAULT, KI_DEFAULT, KD_DEFAULT, FC_DEFAULT);
+  reset();
 }
