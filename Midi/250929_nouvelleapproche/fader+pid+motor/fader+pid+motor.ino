@@ -1,7 +1,13 @@
 #include <Arduino.h>
 #include "display.h"
 #include "fader_filtre_adc.h"
+#include "pid.h"
+#include "has_serial.h"
+#include "motor.h"
 
+
+constexpr uint8_t bash_test_pid = 1; // active ou non com scrypte python
+//
 
 void setup() {
     setupOLED();
@@ -14,6 +20,7 @@ void setup() {
 
 
 void loop() {
+if 
   loopfader();
 }
 

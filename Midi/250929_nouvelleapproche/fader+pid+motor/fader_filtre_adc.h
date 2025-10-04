@@ -71,5 +71,7 @@ constexpr int  snap_high   = 4080 ; // valeur au dessus de laquel le fader se me
 // Cadence
 constexpr uint8_t LOOP_DELAY_MS = 2;
 
+extern uint16_t gFaderADC[MAX_FADERS]; // valeurs filtrées brutes 0..4095
+
 void setupADC();
 void loopfader();

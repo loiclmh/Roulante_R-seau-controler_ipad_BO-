@@ -12,7 +12,7 @@
 // ===================== ÉTAT =====================
 // Un filtre Control Surface par fader
 static AH::FilteredAnalog<MY_ADC_BITS, FILTER_SHIFT, uint32_t>* gFaders[MAX_FADERS] = {nullptr};
-static int gFaderADC[MAX_FADERS] = {0}; // valeurs filtrées brutes 0..4095
+uint16_t gFaderADC[MAX_FADERS] = {0}; // valeurs filtrées brutes 0..4095
 
 // ===================== UTILS =====================
 static inline int clamp(int v, int lo, int hi) {
@@ -37,8 +37,7 @@ void setupADC() {
   }
 }
 
-void loopfader() {
-  for (uint8_t i = 0; i < NUM_FADERS; ++i) {
+void loopfader(uint8_t i) {
     // 1. Met à jour le filtre Control Surface puis récupère la valeur
     gFaders[i]->update();
     int filt_raw = (int)gFaders[i]->getValue();
