@@ -4,11 +4,7 @@
 #include "fader_filtre_adc.h" // pour setPosition[] et ADC_MAX
 #include "pid.h"   // pour kp_python, ki_python, kd_python, ts_python, fc_python
 #include "motor.h" // pour NUM_MOTOR
-
-
-// === Mode de test ===
-// 0 = OFF (rien), 1 = TEST LOCAL (séquence 5-50-25-95-75-0), 2 = PYTHON (réglages via série)
-constexpr uint8_t bash_test_mode = 0; // 0=OFF, 1=LOCAL, 2=PYTHON
+#include "debug.hpp" // pour on_debug, on_debug_python, on_debug_monitorarduino
 
 // === Position injectée par Python ===
 // - Soit en pas ADC (0..ADC_MAX) via commande POS

@@ -7,10 +7,8 @@
 
 //===================== setup et loop OLED  =========
 void setupOLED();
-void drawInfo();
-
-
-//====================  Fonctions OLED  ========================
-void drawOLED ();
 void drawOLED(int value);
+
+
+
   

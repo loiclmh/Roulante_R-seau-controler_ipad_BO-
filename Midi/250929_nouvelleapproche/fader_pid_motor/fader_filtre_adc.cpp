@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "display.h"
 #include "fader_filtre_adc.h"
+#include "debug.hpp"
 
 
 // ====== Control Surface (obligatoire) ======

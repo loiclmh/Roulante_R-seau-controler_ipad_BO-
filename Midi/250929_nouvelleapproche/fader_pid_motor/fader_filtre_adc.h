@@ -1,3 +1,4 @@
+#pragma once
 /*
   Faders multi-canaux (RP2040) — Control Surface + zones mortes
   - Nombre de faders réglable via NUM_FADERS (1..11)
@@ -39,10 +40,6 @@
     les butées USABLE_MIN et USABLE_MAX ne marche pas 
     il faut crée des variable en % pour qu'il soit fonctionel sur tout les format
 */
-
-//====================== DEBUG =====================
-constexpr int debugOLED_fader = 1; // 0=off, 1=affiche valeurs ADC dans le moniteur série
-constexpr int debug_fadermoniteur = 0; // 0=off, 1=affiche ready sur le moniteur 
 
 
 // ===================== RÉGLAGES (tout en haut) =====================
