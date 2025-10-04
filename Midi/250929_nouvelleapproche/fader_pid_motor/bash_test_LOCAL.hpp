@@ -4,7 +4,7 @@
 #include "fader_filtre_adc.h" // pour setPosition[] et ADC_MAX
 #include "pid.h"   // pour kp_python, ki_python, kd_python, ts_python, fc_python
 #include "motor.h" // pour NUM_MOTOR
-#include "debug.hpp" // pour on_debug, on_debug_python, on_debug_monitorarduino
+#include "debug.h" // pour on_debug, on_debug_python, on_debug_monitorarduino
 
 // === Position injectée par Python ===
 // - Soit en pas ADC (0..ADC_MAX) via commande POS

@@ -3,6 +3,14 @@
 #include "fader_filtre_adc.h"
 #include "pid.h"
 
+Motor motors[MAX_MOTOR] = {
+  { 18, 17 }, // M1
+  { 16, 15 }, // M2
+  { 14, 13 }, // M3
+  { 12, 11 }  // M4
+};
+
+static uint8_t freinActifCount[NUM_MOTOR] = {0};
 
 void setupmotor() {
     for (uint8_t i=0; i<NUM_MOTOR; ++i) {
@@ -11,8 +19,8 @@ void setupmotor() {
     // sécurité au boot : roue libre
     digitalWrite(motors[i]._in1, LOW);
     digitalWrite(motors[i]._in2, LOW);
-    analogWriteFreq(freqMotor);
   }
+  analogWriteFreq(freqMotor);
 }
 
 //================ENVOI INFO MOTOR =============
@@ -23,28 +31,28 @@ void loopmotor(uint8_t i) {
     uint8_t pwm = (uint8_t)abs(u);
 
     if (u == 0) {
-        if (nfreinactif[i] >= freinActif ) { // freinage désactivé silence 
-            digitalWrite(motors[i]._in1, LOW);
-            digitalWrite(motors[i]._in2, LOW);
-        return ; 
-        }
-        else {                               // freinage actif activé
-            digitalWrite(motors[i]._in1, HIGH);
-            digitalWrite(motors[i]._in2, HIGH);
-            nfreinactif[i] = nfreinactif[i] + 1;
-        }
-    return;
+    // Freinage actif pendant N cycles, puis Hi-Z (silence)
+      if (freinActifCount[i] >= FREIN_ACTIF_CYCLES) {
+        digitalWrite(motors[i]._in1, LOW);
+        digitalWrite(motors[i]._in2, LOW);
+        return;
+      } else {
+        digitalWrite(motors[i]._in1, HIGH);
+        digitalWrite(motors[i]._in2, HIGH);
+        freinActifCount[i]++;   // <-- remplace nfreinactif[i] = nfreinactif[i] + 1
+        return;
+      }
   }
-
+  
+  // u != 0 → reset le compteur
+  freinActifCount[i] = 0;
     if (u > 0) { // si inversion des sens changer > par <
       // Avant : IN1 = PWM, IN2 = 0
       digitalWrite(motors[i]._in2, LOW);
       analogWrite (motors[i]._in1, pwm);
-      nfreinactif[i] = 0;
     } else {
       // Arrière : IN1 = 0, IN2 = PWM
       digitalWrite(motors[i]._in1, LOW);
       analogWrite (motors[i]._in2, pwm);
-      nfreinactif[i] = 0;
   }
 }

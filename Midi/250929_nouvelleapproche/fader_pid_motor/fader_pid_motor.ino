@@ -1,17 +1,15 @@
 #include <Arduino.h>
-#include "debug.hpp"
 #include "display.h"
 #include "fader_filtre_adc.h"
 #include "pid.h"
 #include "motor.h"
 #include "bash_test_LOCAL.hpp"
-#include "bash_tets_python.hpp"
+#include "bash_test_python.hpp"
+#include "debug.h"
 
 
-constexpr uint8_t bash_test_pid = 0; // active ou non com scrypte python
 // === Variables pour communication Python ===
 float t_sec = 0.0f;       // temps en secondes (sera mis à jour dans loop)
-uint8_t fader_idx = 0;    // fader/moteur à tester/envoyer
 //
 
 void setup() {
@@ -57,8 +55,20 @@ void loop() {
     t_sec = millis() / 1000.0f;
 
     // Boucle PID pour tous les faders
-    for (uint8_t i = 0; i < NUM_FADERS; ++i)
-        loopPID(i);
+  if (bash_test_mode == 2) {       // Python
+    uint8_t i = fader_idx;
+    loopfader(i);
+    loopPID(i);
+    loopmotor(i);
+  } else {                         // normal
+    for (uint8_t i = 0; i < NUM_MOTOR; ++i) {
+      loopfader(i);
+      loopPID(i);
+      loopmotor(i);
+    }
+  }
+
+
 
     // --- Bash test local ---
     if (bash_test_pid == 0) return; // pas de com Python

@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <Arduino.h>
 
 /*
   Faders multi-canaux (RP2040) — Control Surface + zones mortes
@@ -71,6 +72,7 @@ constexpr int  snap_high   = 4080 ; // valeur au dessus de laquel le fader se me
 constexpr uint8_t LOOP_DELAY_MS = 2;
 
 extern uint16_t gFaderADC[MAX_FADERS]; // valeurs filtrées brutes 0..4095
+extern uint8_t fader_idx;    // fader/moteur à tester/envoyer
 
 void setupADC();
-void loopfader();
+void loopfader(uint8_t i);

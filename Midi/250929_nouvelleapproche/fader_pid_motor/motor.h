@@ -1,11 +1,12 @@
 #pragma once
 #include <cstdint>           // pour uint8_t
 #include "fader_filtre_adc.h"
+#include "debug.h"    // DBUG
 
 // ===================== RÉGLAGES (tout en haut) =====================
 constexpr uint8_t MAX_MOTOR = MAX_FADERS;   // limite dure (ne pas dépasser)
 constexpr uint8_t NUM_MOTOR = NUM_FADERS;   // ← règle ici (1..11)
-constexpr int freqMotor = 250000 ; // 25 kHz feq moteur 
+constexpr uint32_t freqMotor = 25000; // 25 kHz fréquence PWM moteur
 
 struct Motor {
     uint8_t _in1;
@@ -13,20 +14,14 @@ struct Motor {
 };
 
 // Liste des broches de contrôle des moteurs (IN1, IN2)
-Motor motors[NUM_MOTOR] = { 
-    { 18, 17 }, // Motor 1
-    { 16, 15 }, // Motor 2
-    { 14, 13 }, // Motor 3
-    { 12, 11 }  // Motor 4
-};
+extern Motor motors[NUM_MOTOR];
 
 // ===================== RÉGLAGES  motor =====================
 constexpr float breakv = 0.83f ; // limite les action à 10v idéal pour le moteur 
-constexpr uint8_t freinActif = 4; // nombre de cycle pour avoir un freinage actif désactivé
+constexpr uint8_t FREIN_ACTIF_CYCLES = 4; // nombre de cycles pour activer le frein
 
-static uint8_t freinActif[NUM_MOTOR] = {0}; // valeur expérimental pour optimisé le frein
+extern uint8_t freinActifCount[NUM_MOTOR];
 
 // ===================== API =====================
 void setupmotor();
-void loopmotor()
-
+void loopmotor(uint8_t i);

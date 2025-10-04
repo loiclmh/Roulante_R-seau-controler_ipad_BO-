@@ -6,6 +6,7 @@
 #include <Adafruit_SSD1306.h>
 
 
+
 static Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 void setupOLED() {

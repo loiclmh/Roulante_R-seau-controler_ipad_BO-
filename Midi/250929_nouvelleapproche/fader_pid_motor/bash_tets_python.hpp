@@ -1,12 +1,15 @@
 // ========================== bash_tets_python.hpp ==========================
 #pragma once
 #include <Arduino.h>
+#include <cstdint>
 #include <string.h>     // memcpy
 #include <ctype.h>      // isdigit
 
 #include "fader_filtre_adc.h"  // <-- pour MAX_FADERS / NUM_FADERS
 #include "motor.h"             // <-- pour NUM_MOTOR (dépend de fader_filtre_adc.h)
 #include "pid.h"               // <-- pour gPid[] et la classe PID (méthodes visibles ici
+
+#include "debug.h"            // <-- pour on_debug, on_debug_python, on_debug_monitorarduino
 
 // ---------- Externs (définis ailleurs dans ton projet) ----------
 extern PID*     gPid[NUM_MOTOR];
@@ -90,6 +93,7 @@ inline void onSlipPacket(const uint8_t* data, uint16_t len) {
   uint8_t idx = 0;
   float   v   = 0.f;
   if (!parseIdxAndValue(data, len, idx, v)) return;
+  fader_idx = idx; // pour bash_test_mode==2  
   if (idx >= NUM_MOTOR) return;
 
   switch (cmd) {
