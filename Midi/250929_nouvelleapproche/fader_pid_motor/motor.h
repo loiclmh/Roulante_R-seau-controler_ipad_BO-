@@ -1,9 +1,10 @@
 #pragma once
+#include <cstdint>           // pour uint8_t
 #include "fader_filtre_adc.h"
 
 // ===================== RÉGLAGES (tout en haut) =====================
-constexpr uint8_t MAX_MOTOR = MAX_FADER ;   // limite dure (ne pas dépasser)
-constexpr uint8_t NUM_MOTOR = NUM_FADER ;   // ← règle ici (1..11)
+constexpr uint8_t MAX_MOTOR = MAX_FADERS;   // limite dure (ne pas dépasser)
+constexpr uint8_t NUM_MOTOR = NUM_FADERS;   // ← règle ici (1..11)
 constexpr int freqMotor = 250000 ; // 25 kHz feq moteur 
 
 struct Motor {

@@ -3,19 +3,25 @@
 #include "display.h"
 #include "fader_filtre_adc.h"
 #include "pid.h"
-#include "has_serial.h"
-
 #include "motor.h"
-#include "bash_test.hpp"
+#include "bash_test_LOCAL.hpp"
+#include "bash_tets_python.hpp"
 
 
 constexpr uint8_t bash_test_pid = 0; // active ou non com scrypte python
+// === Variables pour communication Python ===
+float t_sec = 0.0f;       // temps en secondes (sera mis à jour dans loop)
+uint8_t fader_idx = 0;    // fader/moteur à tester/envoyer
 //
 
 void setup() {
     debugsetup();
     setupOLED();
     analogReadResolution(MY_ADC_BITS);
+    for (uint8_t i = 0; i < NUM_MOTOR; ++i) {
+        setPosition[i] = 0; // par défaut au minimum
+        Dirmotor[i] = 0;   // par défaut moteur à l'arrêt
+    }
 
     // ------------------------------
     // Sélection du mode série (un seul)
@@ -34,6 +40,7 @@ void setup() {
     }
     // ADC & filtres faders
     setupADC();
+    setupmotor();
 
     // PID : utilise les valeurs Python si on est en mode python ET bash_test_pid==1
     const bool use_python_vals = (on_debug && on_debug_python && (bash_test_pid == 1));
@@ -46,17 +53,26 @@ void setup() {
 }
 
 void loop() {
-    // 1) I/O série pour Tuning.py (SLIP p/i/d/t/c/s)
-    handleTuningIO();
+    // mettre à jour le temps (millis() → secondes)
+    t_sec = millis() / 1000.0f;
 
-    // 2) Si le mode test local est actif, avance la séquence (séquentiel ou parallèle selon ton bash_test.hpp)
-    bashTestLoop();
+    // Boucle PID pour tous les faders
+    for (uint8_t i = 0; i < NUM_FADERS; ++i)
+        loopPID(i);
 
-    // 3) Rafraîchir les faders (mesure filtrée -> gFaderADC[])
-    loopfader();
+    // --- Bash test local ---
+    if (bash_test_pid == 0) return; // pas de com Python
+    if (bash_test_mode == 1) {
+        loop_test_bash_local();  // ton test local
+    }
 
-    // 4) Mettre à jour chaque voie PID + commande moteur
-    for (uint8_t i = 0; i < NUM_MOTOR; ++i) {
-        loopPID(i);  // calcule u et pilote moteur i
+    // --- Communication Python ---
+    if (on_debug && on_debug_python) {
+        tuningHandle();
+        tuningSendSample(fader_idx, t_sec, setPosition[fader_idx], gFaderADC[fader_idx], Dirmotor[fader_idx]);
     }
 }
+
+
+
+

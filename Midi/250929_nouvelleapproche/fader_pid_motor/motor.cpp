@@ -11,8 +11,7 @@ void setupmotor() {
     // sécurité au boot : roue libre
     digitalWrite(motors[i]._in1, LOW);
     digitalWrite(motors[i]._in2, LOW);
-    analogWriteFreq(motors[i]._in1, freqMotor);  // ~25 kHz silencieux
-    analogWriteFreq(motors[i]._in2, freqMotor);
+    analogWriteFreq(freqMotor);
   }
 }
 
@@ -25,27 +24,27 @@ void loopmotor(uint8_t i) {
 
     if (u == 0) {
         if (nfreinactif[i] >= freinActif ) { // freinage désactivé silence 
-            digitalWrite(motors[i].in1, LOW);
-            digitalWrite(motors[i].in2, LOW);
+            digitalWrite(motors[i]._in1, LOW);
+            digitalWrite(motors[i]._in2, LOW);
         return ; 
         }
         else {                               // freinage actif activé
-            digitalWrite(motors[i].in1, HIGH);
-            digitalWrite(motors[i].in2, HIGH);
-            nfreinactif[i] = nfreinactif[i] + x1
+            digitalWrite(motors[i]._in1, HIGH);
+            digitalWrite(motors[i]._in2, HIGH);
+            nfreinactif[i] = nfreinactif[i] + 1;
         }
     return;
   }
 
     if (u > 0) { // si inversion des sens changer > par <
       // Avant : IN1 = PWM, IN2 = 0
-      digitalWrite(motors[i].in2, LOW);
-      analogWrite (motors[i].in1, pwm);
+      digitalWrite(motors[i]._in2, LOW);
+      analogWrite (motors[i]._in1, pwm);
       nfreinactif[i] = 0;
     } else {
       // Arrière : IN1 = 0, IN2 = PWM
-      digitalWrite(motors[i].in1, LOW);
-      analogWrite (motors[i].in2, pwm);
+      digitalWrite(motors[i]._in1, LOW);
+      analogWrite (motors[i]._in2, pwm);
       nfreinactif[i] = 0;
   }
 }

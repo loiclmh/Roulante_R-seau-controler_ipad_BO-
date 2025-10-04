@@ -1,7 +1,9 @@
 
 #pragma once
-
-
+#include "motor.h"   // définit NUM_MOTOR
+#include "pid.h"    // PID class
+#include "debug.hpp"    // DBUG
+#include "fader_filtre_adc.h"   // gFaderADC[NUM_MOTOR]
 
 
 /**/
@@ -36,7 +38,7 @@ extern float kp_python, ki_python, kd_python, ts_python, fc_python;
 
 // ======================= constantes externes =====================
 extern int16_t Dirmotor[NUM_MOTOR];    // sortie PID signée => motor.h
-
+extern uint16_t setPosition[NUM_MOTOR]; // consignes => fader+pid+motor.ino
 
 // ====================== API =====================
 void initial_PIDv(bool use_python); // choisit défaut/python et (re)crée les PID

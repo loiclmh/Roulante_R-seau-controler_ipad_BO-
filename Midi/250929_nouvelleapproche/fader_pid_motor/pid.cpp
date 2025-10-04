@@ -1,7 +1,8 @@
 #include "pid.h"
 #include "fader_filtre_adc.h"
 #include "motor.h"
-#include "has_serial.h"
+#include "debug.hpp"
+
 
 // ======================= Constantes PID (garde fou au cas de pb d'initialisation)====================
         // Valeurs courantes (communes à tous)
@@ -31,14 +32,8 @@ void pidBegin() {
 }
 
 // Choisit défaut/python et applique
-void initial_PIDv() {
-  if (bash_test_pid == 1) {
-    kp = kp_python;  ki = ki_python;  kd = kd_python;
-    ts = ts_python;  fc = fc_python;
-  } else {
-    kp = KP_DEFAUT;  ki = KI_DEFAUT;  kd = KD_DEFAUT;
-    ts = TS_DEFAUT;  fc = FC_DEFAUT;
-  }
+
+
   // ts influe le constructeur -> on (re)crée les PID
   pidBegin();
 }
