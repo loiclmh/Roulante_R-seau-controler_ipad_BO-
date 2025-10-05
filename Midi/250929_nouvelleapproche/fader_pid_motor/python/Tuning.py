@@ -56,13 +56,13 @@ if SERIAL_PORT is None:
 print(f"[INFO] Port série utilisé : {SERIAL_PORT}")
 
 # =================== Jeux de paramètres  à modifier Idx + (Kp, Ki, Kd, ts, fc) ===================
-fader_idx = 1  # index du fader/moteur à tester (0, 1, 2, ...)
+fader_idx = 0  # index du fader/moteur à tester (0, 1, 2, ...)
 
 tunings = [
     (6,  2,   0.035, 0.001, 60),
-    (6,  8,   0.035, 0.001, 60),
-    (6,  64,  0.035, 0.001, 60),
-    (6,  256, 0.035, 0.001, 60),
+    #(6,  8,   0.035, 0.001, 60),
+    #(6,  64,  0.035, 0.001, 60),
+    #(6,  256, 0.035, 0.001, 60),
 ]
 
 # =================== Jeux de paramètres  à modifier Idx + (Kp, Ki, Kd, ts, fc) ===================
@@ -75,7 +75,7 @@ img_basename = 'tuning_result'
 # --- Sélection du fader/moteur ---
 # On choisit le fader globalement avec fader_idx, et chaque tuning est un 5-tuple.
 
-# --- Sélection du fader/moteur via un index global ---
+# --- Sélection du fader/moteur via un index global --- 
 # Chaque tuning DOIT être un 5-tuple: (Kp, Ki, Kd, Ts, Fc)
 
 def parse_tuning(t: tuple):
@@ -138,28 +138,59 @@ with Serial(SERIAL_PORT, BAUDRATE, timeout=TIMEOUT) as ser:
 
             # Applique les PID
             set_tuning(ser, tuning)
-            read_slip(ser)              # vide une éventuelle réponse
             ser.reset_input_buffer()
 
             # Démarre automatiquement l'expérience (pas d'attente longue)
             start(ser, tuning)
 
-            # Lecture des frames jusqu'à None (fin d'essai)
+            # Lecture des frames, on fige le nb de colonnes sur la 1re ligne valide
+            target_cols = None
+            silent_loops = 0
+            MAX_SILENT_LOOPS = int(8 / TIMEOUT)  # ~8 s sans trame -> on arrête proprement
+
             while True:
-                data = read_slip(ser)
+                data = read_slip(ser)  # None si timeout
                 if data is None:
-                    break
-                f.write('\t'.join(map(str, data)) + '\n')
+                    silent_loops += 1
+                    if silent_loops >= MAX_SILENT_LOOPS:
+                        print("[WARN] Aucun paquet depuis ~8s, on stoppe cet essai.")
+                        break
+                    continue
+
+                silent_loops = 0
+
+                # sécurité: cast en floats
+                try:
+                    row = [float(x) for x in data]
+                except Exception:
+                    continue
+
+                # fige la largeur attendue sur la 1re ligne valide
+                if target_cols is None:
+                    target_cols = len(row)
+
+                # ignore les lignes qui ne matchent pas
+                if len(row) != target_cols:
+                    continue
+
+                f.write('\t'.join(f'{v:.6g}' for v in row) + '\n')
 
         # Charge et trace le fichier
-        data = genfromtxt(filename, delimiter='\t')
         try:
-            n = getattr(data, 'shape', (0,))[0]
-        except Exception:
-            n = 0
-        if n == 0:
+            data = genfromtxt(filename, delimiter='\t')
+        except Exception as e:
+            print(f"[WARN] Lecture échouée: {e}")
+            continue
+
+        # data peut être 1D si une seule colonne
+        import numpy as np
+        if getattr(data, 'ndim', 0) == 1:
+            data = data.reshape(-1, 1)
+
+        if data.size == 0 or data.shape[0] == 0:
             print(f"[WARN] Fichier vide: {filename} — aucun tracé.")
             continue
+
         axs[i][0].plot(data, linewidth=1)
         axs[i][0].axhline(0, linewidth=0.5, color='k')
         axs[i][0].set_title(get_readable_name(tuning))

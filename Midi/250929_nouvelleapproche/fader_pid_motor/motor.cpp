@@ -10,7 +10,7 @@ Motor motors[MAX_MOTOR] = {
   { 12, 11 }  // M4
 };
 
-static uint8_t freinActifCount[NUM_MOTOR] = {0};
+uint8_t freinActifCount[NUM_MOTOR] = {0};
 
 void setupmotor() {
     for (uint8_t i=0; i<NUM_MOTOR; ++i) {

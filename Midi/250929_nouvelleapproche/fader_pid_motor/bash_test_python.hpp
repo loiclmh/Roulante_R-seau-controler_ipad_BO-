@@ -17,6 +17,7 @@ extern uint16_t setPosition[NUM_MOTOR];
 extern uint16_t gFaderADC[MAX_FADERS];
 extern int16_t  Dirmotor[NUM_MOTOR];
 
+extern uint8_t fader_idx; // fader/moteur sélectionné par Python (bash_test_mode==2)
 extern float kp_python, ki_python, kd_python, ts_python, fc_python;
 extern void  initial_PIDv(bool use_python);
 

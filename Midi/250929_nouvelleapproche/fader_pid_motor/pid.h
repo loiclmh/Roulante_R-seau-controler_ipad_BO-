@@ -42,7 +42,7 @@ class PID {
     float getKp() const { return kp; }
     float getKi() const { return ki_Ts / Ts; }
     float getKd() const { return kd_Ts * Ts; }
-    static constexpr float PI = 3.14159265358979323846f;
+    static constexpr float kPI = 3.14159265358979323846f;
 
     // filtre dérivé (EMA) – f_c en Hz ; 0 => pas de filtrage
     void setEMACutoff(float f_c) {
@@ -102,7 +102,7 @@ class PID {
     // alpha de l’EMA à partir de la fréquence normalisée fn = f_c * Ts
     static float calcAlphaEMA(float fn) {
         if (fn <= 0) return 1.0f;
-        const float c = std::cos(2.0f * PI * fn);
+        const float c = std::cos(2.0f * kPI * fn);
         return c - 1.0f + std::sqrt(c * c - 4.0f * c + 3.0f);
     }
 

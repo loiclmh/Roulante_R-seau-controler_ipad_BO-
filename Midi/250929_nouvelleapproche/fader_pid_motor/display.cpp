@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include "debug.h"
 
 
 
@@ -24,7 +25,14 @@ void setupOLED() {
   oled.print("pico ok");
   oled.setCursor(0, 30);
   oled.setTextSize(1);
-  oled.print("version info fader OK");
+  oled.println("version info fader OK");
+
+  oled.setCursor(0, 40);
+  oled.print("MODE: ");
+  if (bash_test_mode == 0)      oled.println("NORMAL");
+  else if (bash_test_mode == 1) oled.println("MONITOR");
+  else if (bash_test_mode == 2) oled.println("PYTHON");
+  else                          oled.println("UNKNOWN");
   oled.display();
 }
 

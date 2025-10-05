@@ -48,7 +48,7 @@
 // ===================== RÉGLAGES (tout en haut) =====================
 constexpr uint8_t MAX_FADERS = 4;   // limite dure (ne pas dépasser)
 constexpr uint8_t NUM_FADERS = 1;    // ← règle ici (1..11)
-constexpr int DEADBAND_ADC = 4;  // ajuste 2-8 selon tolérance
+constexpr int DEADBAND_ADC = 8;  // ajuste 2-8 selon tolérance
 
 // Liste des broches ADC pour jusqu’à 11 faders (RP2040 : GP26=ADC0, GP27=ADC1, GP28=ADC2, GP29=ADC3)
 constexpr uint8_t FADER_PINS[MAX_FADERS] = { A0, A1, A2, A3 };

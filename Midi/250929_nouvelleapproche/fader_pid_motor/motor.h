@@ -14,7 +14,7 @@ struct Motor {
 };
 
 // Liste des broches de contrôle des moteurs (IN1, IN2)
-extern Motor motors[NUM_MOTOR];
+extern Motor motors[MAX_MOTOR];
 
 // ===================== RÉGLAGES  motor =====================
 constexpr float breakv = 0.83f ; // limite les action à 10v idéal pour le moteur 

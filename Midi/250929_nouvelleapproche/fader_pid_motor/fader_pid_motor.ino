@@ -29,6 +29,7 @@ void setup() {
             // Tuning.py → haut débit
             Serial.begin(1000000);
             unsigned long t0 = millis();
+            tuningBegin(1000000);          // ← IMPORTANT : init SLIP, timers, etc.
             while (!Serial && (millis() - t0) < 1500) {}
         } else if (on_debug_monitorarduino) {
             // Moniteur Arduino
@@ -40,14 +41,10 @@ void setup() {
     setupADC();
     setupmotor();
 
-    // PID : utilise les valeurs Python si on est en mode python ET bash_test_pid==1
-    const bool use_python_vals = (on_debug && on_debug_python && (bash_test_pid == 1));
+    // PID : utilise les valeurs Python si on est en mode python ET bash_test_mode==1
+    const bool use_python_vals = (on_debug && on_debug_python && (bash_test_mode == 1));
     initial_PIDv(use_python_vals);
 
-    // Test local (séquentiel ou parallèle selon bash_test.hpp)
-    if (bash_test_mode == 1) {
-        bashTestBegin();
-    }
 }
 
 void loop() {
@@ -55,23 +52,25 @@ void loop() {
     t_sec = millis() / 1000.0f;
 
     // Boucle PID pour tous les faders
-  if (bash_test_mode == 2) {       // Python
-    uint8_t i = fader_idx;
-    loopfader(i);
-    loopPID(i);
-    loopmotor(i);
-  } else {                         // normal
-    for (uint8_t i = 0; i < NUM_MOTOR; ++i) {
-      loopfader(i);
-      loopPID(i);
-      loopmotor(i);
-    }
+ if (bash_test_mode == 2) {             // === Mode Python ===
+    tuningHandle();                      // lit les paquets SLIP (p/i/d/t/c/s)
+
+    const uint8_t i = fader_idx;         // fader/moteur choisi par Python
+    loopfader(i);                        // rafraîchit gFaderADC[i]
+    loopPID(i);                          // calcule Dirmotor[i]
+    loopmotor(i);                        // applique Dirmotor[i]
+
+    // horodatage en secondes (float)
+    static uint32_t t0 = millis();
+    float t_sec = (millis() - t0) * 0.001f;
+
+    // ENVOI de la trame à Tuning.py (4/5 colonnes, mais au moins 3)
+    tuningSendSample(i, t_sec, setPosition[i], gFaderADC[i], Dirmotor[i]);
+    return;
   }
 
-
-
     // --- Bash test local ---
-    if (bash_test_pid == 0) return; // pas de com Python
+    if (bash_test_mode == 0) return; // pas de com Python
     if (bash_test_mode == 1) {
         loop_test_bash_local();  // ton test local
     }
